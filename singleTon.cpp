@@ -4,6 +4,7 @@ using namespace std;
 class JudgeAnalytics
 {
 private:
+    static JudgeAnalytics instance; // eager loading
     int count = 10;
     int submit = 5;
 
@@ -19,7 +20,7 @@ public:
 
     static JudgeAnalytics& getInstance()
     {
-        static JudgeAnalytics instance;
+        // static JudgeAnalytics instance; lazy loading
         return instance;
     }
 
