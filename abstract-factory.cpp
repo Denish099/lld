@@ -1,170 +1,133 @@
 #include <iostream>
-#include <string>
-#include <algorithm>
-#include <cctype>
-
 using namespace std;
-
 
 class PaymentGateway {
 public:
+    virtual ~PaymentGateway() = default;
+
     virtual void processPayment(double amount) = 0;
-    virtual ~PaymentGateway() {}
 };
 
-
-class RazorPay : public PaymentGateway{
+class Invoice {
 public:
-    void processPayment(double amount) override{
-        cout << "Processing payment via RazorPay: " << amount << endl;
-    }
-};
+    virtual ~Invoice() = default;
 
-class PayUGateway: public PaymentGateway{
-public:
-    void processPayment(double amount) override{
-        cout << "Processing payment via PayU: " << amount << endl;
-    }
-};
-
-
-class Stripe : public PaymentGateway{
-public:
-    void processPayment(double amount) override{
-        cout << "Processing payment via Stripe: " << amount << endl;
-    }
-};
-
-class PayPal : public PaymentGateway{
-public:
-    void processPayment(double amount) override{
-        cout << "Processing payment via PayPal: " << amount << endl;
-    }
-};
-
-
-class Invoice{
-public:
     virtual void generateInvoice() = 0;
-    virtual ~Invoice() {}
 };
 
-
-class GSTInvoice : public Invoice{
+class RazorpayGateway : public PaymentGateway {
 public:
-    void generateInvoice() override{
-        cout << "Generating GST invoice for India" << endl;
-    }
-};
-
-
-class USInvoice : public Invoice{
-public:
-    void generateInvoice() override{
-        cout << "Generating US invoice" << endl;
+    void processPayment(double amount) override {
+        cout << "Processing INR payment via Razorpay: " << amount << "\n";
     }
 };
 
-
-class PaymentFactory{
+class PayUGateway : public PaymentGateway {
 public:
-    virtual PaymentGateway* createPaymentGateway(string gatewayType) = 0;
-    virtual Invoice* createInvoice() = 0;
-    virtual ~PaymentFactory() {}
-};
-
-
-class IndiaFactory : public PaymentFactory{
-public:
-
-    PaymentGateway* createPaymentGateway(string gatewayType) override{
-
-        transform(gatewayType.begin(), gatewayType.end(),
-                  gatewayType.begin(), ::tolower);
-
-        if(gatewayType == "razorpay")
-            return new RazorPay();
-
-        if(gatewayType == "payu")
-            return new PayUGateway();
-
-        return nullptr;
-    }
-
-    Invoice* createInvoice() override{
-        return new GSTInvoice();
+    void processPayment(double amount) override {
+        cout << "Processing INR payment via PayU: " << amount << "\n";
     }
 };
 
-
-class USFactory : public PaymentFactory{
+class GSTInvoice : public Invoice {
 public:
-
-    PaymentGateway* createPaymentGateway(string gatewayType) override{
-
-        transform(gatewayType.begin(), gatewayType.end(),
-                  gatewayType.begin(), ::tolower);
-
-        if(gatewayType == "stripe")
-            return new Stripe();
-
-        if(gatewayType == "paypal")
-            return new PayPal();
-
-        return nullptr;
-    }
-
-    Invoice* createInvoice() override{
-        return new USInvoice();
+    void generateInvoice() override {
+        cout << "Generating GST Invoice for India.\n";
     }
 };
 
-
-class CheckoutService{
-private:
-    PaymentFactory* factory;
-    string gatewayType;
-
+class PayPalGateway : public PaymentGateway {
 public:
-
-    CheckoutService(PaymentFactory* factory, string gatewayType){
-        this->factory = factory;
-        this->gatewayType = gatewayType;
+    void processPayment(double amount) override {
+        cout << "Processing USD payment via PayPal: " << amount << "\n";
     }
+};
 
-    void checkout(double amount){
+class StripeGateway : public PaymentGateway {
+public:
+    void processPayment(double amount) override {
+        cout << "Processing USD payment via Stripe: " << amount << "\n";
+    }
+};
 
-        PaymentGateway* gateway =
-            factory->createPaymentGateway(gatewayType);
+class USInvoice : public Invoice {
+public:
+    void generateInvoice() override {
+        cout << "Generating Invoice as per US norms.\n";
+    }
+};
 
-        Invoice* invoice =
-            factory->createInvoice();
+class RegionFactory {
+public:
+    virtual ~RegionFactory() = default;
 
-        if(gateway){
-            gateway->processPayment(amount);
+    virtual unique_ptr<PaymentGateway> createPaymentGateway(const string &gatewayType) = 0;
+
+    virtual unique_ptr<Invoice> createInvoice() = 0;
+};
+
+class IndiaFactory : public RegionFactory {
+public:
+    unique_ptr<PaymentGateway> createPaymentGateway(const string &gatewayType) override {
+        if (gatewayType == "razorpay") {
+            return make_unique<RazorpayGateway>();
         }
-        else{
-            cout << "Invalid payment gateway" << endl;
-            return;
+        if (gatewayType == "payu") {
+            return make_unique<PayUGateway>();
         }
 
+        throw invalid_argument("Unsupported gateway for India: " + gatewayType);
+    }
+
+    unique_ptr<Invoice> createInvoice() override {
+        return make_unique<GSTInvoice>();
+    }
+};
+
+class USFactory : public RegionFactory {
+public:
+    unique_ptr<PaymentGateway> createPaymentGateway(const string &gatewayType) override {
+        if (gatewayType == "paypal") {
+            return make_unique<PayPalGateway>();
+        }
+        if (gatewayType == "stripe") {
+            return make_unique<StripeGateway>();
+        }
+
+        throw invalid_argument("Unsupported gateway for US: " + gatewayType);
+    }
+
+    unique_ptr<Invoice> createInvoice() override {
+        return make_unique<USInvoice>();
+    }
+};
+
+class CheckoutService {
+    unique_ptr<PaymentGateway> paymentGateway;
+    unique_ptr<Invoice> invoice;
+
+public:
+    CheckoutService(RegionFactory &factory, const string &gatewayType) {
+        paymentGateway = factory.createPaymentGateway(gatewayType);
+        invoice = factory.createInvoice();
+    }
+
+    void completeOrder(double amount) {
+        paymentGateway->processPayment(amount);
         invoice->generateInvoice();
-
-        delete gateway;
-        delete invoice;
     }
 };
 
+int main() {
+    IndiaFactory indiaFactory;
+    CheckoutService indiaCheckout(indiaFactory, "razorpay");
+    indiaCheckout.completeOrder(1999.0);
 
-int main(){
+    cout << "---\n";
 
-    PaymentFactory* factory = new USFactory();
-
-    CheckoutService service(factory, "stripe");
-
-    service.checkout(500);
-
-    delete factory;
+    USFactory usFactory;
+    CheckoutService usCheckout(usFactory, "paypal");
+    usCheckout.completeOrder(49.99);
 
     return 0;
 }
