@@ -17,6 +17,7 @@ public:
     // 3. Delete copy constructor and assignment operator to prevent cloning
     JudgeAnalytics(const JudgeAnalytics&) = delete;
     JudgeAnalytics& operator=(const JudgeAnalytics&) = delete;
+    
 
     static JudgeAnalytics& getInstance()
     {
