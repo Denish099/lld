@@ -3,6 +3,9 @@ It is a structural design pattern which allows us to add new behavoir to objects
 runtime without modifying their original structure
  */
 
+// wants to follow open close principle and single responsibilty principle
+// debugging is hard
+
 #include <iostream>
 using namespace std;
 
