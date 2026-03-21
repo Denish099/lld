@@ -1,3 +1,6 @@
+/* instead of interacting with the real object directly,client interact with the proxy that acts 
+on the behalf of real object*/
+
 #include <iostream>
 #include <memory>
 #include <string>
